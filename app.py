@@ -1,8 +1,12 @@
 import base64
 import os
-from flask import Flask, render_template, request
-import yt_dlp
+import urllib.parse
 
+from flask import Flask, render_template, request, Response, abort
+import yt_dlp
+import requests
+
+# --- Base64 ile gönderilen çerezleri çözüp dosyaya yaz ---
 encoded = os.environ.get('BILI_COOKIES')
 if encoded:
     with open("bilicookies.txt", "wb") as f:
@@ -10,13 +14,13 @@ if encoded:
 
 app = Flask(__name__)
 
+# --- Doğrudan video linkini almak için fonksiyon ---
 def get_direct_url(url):
     ydl_opts = {
         'quiet': True,
         'skip_download': True,
         'forceurl': True,
         'noplaylist': True,
-        # Önce MP4 akışları, değilse en iyisi
         'format': 'bv*+ba/best[ext=mp4]/best',
         'cookiefile': 'bilicookies.txt',
         'source_address': '0.0.0.0',
@@ -24,25 +28,24 @@ def get_direct_url(url):
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
-            # 1) Direkt url alanı varsa onu döndür
+            # Öncelikle info['url']
             direct = info.get('url')
             if direct:
                 return direct
-            # 2) formats listesi varsa içinden ext=mp4 olanı seç
+            # Yoksa formats listesinden mp4 seç
             formats = info.get('formats') or []
-            # MP4 ve HTTPS protokollü olanları filtrele
             mp4_formats = [f for f in formats if f.get('ext') == 'mp4' and f.get('url')]
             if mp4_formats:
-                # En yüksek çözünürlükte olanı seç
                 best_mp4 = sorted(mp4_formats, key=lambda f: f.get('height', 0))[-1]
                 return best_mp4['url']
-            # 3) Hiç MP4 yoksa, formats listesinden sonuncuyu döndür
+            # Fallback
             if formats:
                 return formats[-1].get('url', 'No direct link found.')
             return 'No direct link found.'
     except Exception as e:
         return f"Error: {str(e)}"
 
+# --- Ana sayfa route’u ---
 @app.route('/', methods=['GET', 'POST'])
 def index():
     results = []
@@ -53,5 +56,23 @@ def index():
             results.append({'source': url.strip(), 'direct': direct})
     return render_template('index.html', results=results)
 
+# --- Basit proxy route’u CORS için ---
+@app.route('/proxy')
+def proxy():
+    video_url = request.args.get('url')
+    if not video_url:
+        abort(400, "Missing url parameter")
+    parsed = urllib.parse.urlparse(video_url)
+    if 'akamaized.net' not in parsed.netloc:
+        abort(403, "Forbidden")
+    upstream = requests.get(video_url, stream=True)
+    headers = {
+        'Content-Type': upstream.headers.get('Content-Type', 'application/octet-stream'),
+        'Access-Control-Allow-Origin': '*',
+        'Cache-Control': 'public, max-age=86400',
+    }
+    return Response(upstream.iter_content(chunk_size=8192), headers=headers)
+
+# --- Uygulamayı çalıştır ---
 if __name__ == '__main__':
     app.run(debug=True)
