@@ -63,7 +63,9 @@ def proxy():
     if not video_url:
         abort(400, "Missing url parameter")
     parsed = urllib.parse.urlparse(video_url)
-    if 'akamaized.net' not in parsed.netloc:
+    # Artık hem akamaized.net hem bilivideo.com mirror'larını kabul ediyoruz
+    allowed_hosts = ('akamaized.net', 'bilivideo.com')
+    if not any(domain in parsed.netloc for domain in allowed_hosts):
         abort(403, "Forbidden")
     upstream = requests.get(video_url, stream=True)
     headers = {
