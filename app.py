@@ -4,12 +4,18 @@ import yt_dlp
 app = Flask(__name__)
 
 def get_direct_url(url):
-    ydl_opts = {
+        ydl_opts = {
         'quiet': True,
         'skip_download': True,
         'forceurl': True,
         'noplaylist': True,
-        'format': 'bv+ba/best[ext=mp4]/best'  # 👈 önemli kısım
+        'format': 'bv*+ba/best',
+        'cookiefile': 'bilicookies.txt',
+        'postprocessors': [{
+            'key': 'FFmpegMerger',
+            'preferredformat': 'mp4',
+        }],
+        'source_address': '0.0.0.0',
     }
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -17,6 +23,7 @@ def get_direct_url(url):
             return info.get('url', 'No direct link found.')
     except Exception as e:
         return f"Error: {str(e)}"
+
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
