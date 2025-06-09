@@ -16,7 +16,7 @@ def get_direct_url(url):
         'skip_download': True,
         'forceurl': True,
         'noplaylist': True,
-        # mp4’ü tercih et, yoksa genel en iyi seçeneği al
+        # Önce MP4 akışları, değilse en iyisi
         'format': 'bv*+ba/best[ext=mp4]/best',
         'cookiefile': 'bilicookies.txt',
         'source_address': '0.0.0.0',
@@ -24,7 +24,22 @@ def get_direct_url(url):
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
-            return info.get('url', 'No direct link found.')
+            # 1) Direkt url alanı varsa onu döndür
+            direct = info.get('url')
+            if direct:
+                return direct
+            # 2) formats listesi varsa içinden ext=mp4 olanı seç
+            formats = info.get('formats') or []
+            # MP4 ve HTTPS protokollü olanları filtrele
+            mp4_formats = [f for f in formats if f.get('ext') == 'mp4' and f.get('url')]
+            if mp4_formats:
+                # En yüksek çözünürlükte olanı seç
+                best_mp4 = sorted(mp4_formats, key=lambda f: f.get('height', 0))[-1]
+                return best_mp4['url']
+            # 3) Hiç MP4 yoksa, formats listesinden sonuncuyu döndür
+            if formats:
+                return formats[-1].get('url', 'No direct link found.')
+            return 'No direct link found.'
     except Exception as e:
         return f"Error: {str(e)}"
 
