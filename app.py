@@ -16,12 +16,9 @@ def get_direct_url(url):
         'skip_download': True,
         'forceurl': True,
         'noplaylist': True,
-        'format': 'bv*+ba/best',
+        # mp4’ü tercih et, yoksa genel en iyi seçeneği al
+        'format': 'bv*+ba/best[ext=mp4]/best',
         'cookiefile': 'bilicookies.txt',
-        'postprocessors': [{
-            'key': 'FFmpegMerger',
-            'preferredformat': 'mp4',
-        }],
         'source_address': '0.0.0.0',
     }
     try:
