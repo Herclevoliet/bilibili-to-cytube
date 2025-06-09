@@ -9,7 +9,7 @@ def get_direct_url(url):
         'skip_download': True,
         'forceurl': True,
         'noplaylist': True,
-        'format': 'best'
+        'format': 'bv+ba/best[ext=mp4]/best'  # 👈 önemli kısım
     }
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
