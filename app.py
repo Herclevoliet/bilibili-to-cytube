@@ -14,31 +14,38 @@ if encoded:
 
 app = Flask(__name__)
 
-# --- Doğrudan video linkini almak için fonksiyon ---
 def get_direct_url(url):
     ydl_opts = {
         'quiet': True,
         'skip_download': True,
         'forceurl': True,
         'noplaylist': True,
-        'format': 'bv*+ba/best[ext=mp4]/best',
+        # Önce HLS manifest, sonra MP4 container, sonra fallback best
+        'format': 'best[protocol^=m3u8_native]/best[ext=mp4]/best',
         'cookiefile': 'bilicookies.txt',
         'source_address': '0.0.0.0',
     }
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
-            # Öncelikle info['url']
+            # 1) info.url doğrudan manifest veya mp4 dönüyorsa kullan
             direct = info.get('url')
+            if direct and ('.m3u8' in direct or direct.endswith('.mp4')):
+                return direct
+            # 2) formats listesi içindekilere bak
+            formats = info.get('formats') or []
+            # HLS manifest’leri seç
+            hls = [f for f in formats if f.get('protocol','').startswith('m3u8')]
+            if hls:
+                return hls[-1]['url']  # genelde en son, en iyi kalite manifest
+            # Tam MP4 container linkleri seç
+            mp4s = [f for f in formats if f.get('ext') == 'mp4' and f.get('url')]
+            if mp4s:
+                best_mp4 = sorted(mp4s, key=lambda f: f.get('height', 0))[-1]
+                return best_mp4['url']
+            # 3) Hiçbiri yoksa fallback olarak info.url ya da ilk format
             if direct:
                 return direct
-            # Yoksa formats listesinden mp4 seç
-            formats = info.get('formats') or []
-            mp4_formats = [f for f in formats if f.get('ext') == 'mp4' and f.get('url')]
-            if mp4_formats:
-                best_mp4 = sorted(mp4_formats, key=lambda f: f.get('height', 0))[-1]
-                return best_mp4['url']
-            # Fallback
             if formats:
                 return formats[-1].get('url', 'No direct link found.')
             return 'No direct link found.'
