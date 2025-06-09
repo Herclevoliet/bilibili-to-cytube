@@ -20,34 +20,31 @@ def get_direct_url(url):
         'skip_download': True,
         'forceurl': True,
         'noplaylist': True,
-        # Önce HLS manifest, sonra MP4 container, sonra fallback best
-        'format': 'best[protocol^=m3u8_native]/best[ext=mp4]/best',
         'cookiefile': 'bilicookies.txt',
         'source_address': '0.0.0.0',
     }
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
-            # 1) info.url doğrudan manifest veya mp4 dönüyorsa kullan
+            # 1) Direkt info.url varsa ve manifest ya da mp4 ise kullan
             direct = info.get('url')
-            if direct and ('.m3u8' in direct or direct.endswith('.mp4')):
+            if direct and (direct.endswith('.m3u8') or direct.endswith('.mp4')):
                 return direct
-            # 2) formats listesi içindekilere bak
+            # 2) Tüm formatlar
             formats = info.get('formats') or []
-            # HLS manifest’leri seç
-            hls = [f for f in formats if f.get('protocol','').startswith('m3u8')]
+            # 2a) HLS manifestler (protocol m3u8_native veya m3u8)
+            hls = [f for f in formats if f.get('protocol', '').startswith('m3u8')]
             if hls:
-                return hls[-1]['url']  # genelde en son, en iyi kalite manifest
-            # Tam MP4 container linkleri seç
+                return hls[-1]['url']
+            # 2b) Tam MP4 kapsayıcı (ext mp4)
             mp4s = [f for f in formats if f.get('ext') == 'mp4' and f.get('url')]
             if mp4s:
                 best_mp4 = sorted(mp4s, key=lambda f: f.get('height', 0))[-1]
                 return best_mp4['url']
-            # 3) Hiçbiri yoksa fallback olarak info.url ya da ilk format
-            if direct:
-                return direct
-            if formats:
-                return formats[-1].get('url', 'No direct link found.')
+            # 3) Hiçbiri yoksa ilk bulunan URL
+            for f in formats:
+                if f.get('url'):
+                    return f['url']
             return 'No direct link found.'
     except Exception as e:
         return f"Error: {str(e)}"
