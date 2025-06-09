@@ -1,10 +1,17 @@
+import base64
+import os
 from flask import Flask, render_template, request
 import yt_dlp
+
+encoded = os.environ.get('BILI_COOKIES')
+if encoded:
+    with open("bilicookies.txt", "wb") as f:
+        f.write(base64.b64decode(encoded))
 
 app = Flask(__name__)
 
 def get_direct_url(url):
-        ydl_opts = {
+    ydl_opts = {
         'quiet': True,
         'skip_download': True,
         'forceurl': True,
@@ -23,7 +30,6 @@ def get_direct_url(url):
             return info.get('url', 'No direct link found.')
     except Exception as e:
         return f"Error: {str(e)}"
-
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
