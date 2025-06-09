@@ -25,7 +25,8 @@
             <strong>Kaynak:</strong> <a href="{{ item.source }}" target="_blank">{{ item.source }}</a><br>
             <strong>Doğrudan (Proxy):</strong><br>
             {% if item.direct.startswith('http') %}
-                {% set proxy_url = url_for('proxy', url=item.direct) %}
+                {# Tam URL üretmek için _external=True #}
+                {% set proxy_url = url_for('proxy', url=item.direct, _external=True) %}
                 <a href="{{ proxy_url }}" target="_blank">{{ proxy_url }}</a><br>
                 <em>Cytu.be'de Custom Media alanına bu proxy linki yapıştırın.</em>
             {% else %}
